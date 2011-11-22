@@ -1,4 +1,4 @@
-import collection.mutable.{HashMap, HashSet}
+import collection.mutable.{ListBuffer, HashMap, HashSet}
 import scala.math.{abs,min,pow}
 
 case class GameInProgress(turn: Int = 0, parameters: GameParameters = GameParameters(), board: Board = Board()) extends Game {
@@ -21,6 +21,13 @@ sealed trait Game {
       val dRow = abs(one.row - another.row)
       val dCol = abs(one.column - another.column)
       pow(min(dRow, parameters.rows - dRow), 2) + pow(min(dCol, parameters.columns - dCol), 2)
+    }
+  }
+
+  def manhattaDistanceFrom(one: Tile) = new {
+    def to(another: Tile): Int = {
+      // Need to update this to take into account the torus shape
+      abs(one.row - another.row) + abs(one.column - another.column)
     }
   }
 
@@ -62,11 +69,59 @@ sealed trait Game {
     def to(target: Tile): List[Tile] = {
       // Use the A* algorithm
 
-      val openList = new List[Tile]
+      val openList = new ListBuffer[Tile]
+      val closedList = new ListBuffer[Tile]
+      val scores = new HashMap[Tile, Int]
+      val parents = new HashMap[Tile, Tile]
 
+      openList += from
+      scores += from -> 0
 
+      while (!openList.isEmpty){
+        val currentTile = openList.sortBy(t => scores.apply(t)).head
+        closedList += currentTile
+        openList -= currentTile
 
-      List.empty
+        if (closedList.contains(target)){
+          // Path found, clear openList so we terminate
+          openList.clear()
+        }
+        else{
+          val neighbours = neighboursOf(currentTile).filter(t => !board.water.contains(t) && !closedList.contains(t))
+          neighbours.foreach(neighbour => {
+              if (!openList.contains(neighbour)){
+                // Add to openList and compute it's score A + B
+                // A = parentScore + 1
+                // B = estimatedDistance to targer
+                openList += neighbour
+                scores += neighbour -> (scores.apply(currentTile)+1+manhattaDistanceFrom(neighbour).to(target))
+                parents += neighbour -> currentTile
+              }
+              else{
+                // Tile is already in the open set. Update score if new score is lower
+                val newScore = scores.apply(currentTile)+1+manhattaDistanceFrom(neighbour).to(target)
+                if (newScore < scores.apply(neighbour)){
+                  scores.put(neighbour, newScore)
+                  parents.put(neighbour, currentTile)
+                }
+              }
+          })
+        }
+      }
+
+      // Should have the path now, walk backwards along the parent
+
+      val bestRoute = new ListBuffer[Tile]
+      var currentTile = target
+
+      while (currentTile != from){
+        bestRoute += currentTile
+        currentTile = parents.apply(currentTile)
+      }
+
+      System.err.println("route length: " + bestRoute.length)
+
+      bestRoute.reverse.toList
     }
   }
 }
