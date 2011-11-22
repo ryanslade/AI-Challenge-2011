@@ -15,7 +15,7 @@ class MyBot extends Bot {
 
     ants.flatMap{ant =>
       val foodToEat = game.board.food.head._1
-      val nextTile = game.route(ant.tile).to(foodToEat).head
+      val nextTile = game.route(ant.tile, foodToEat, occupiedTiles).head
 
       val direction = directions.find{aim =>
         game.tile(aim).of(ant.tile) == nextTile

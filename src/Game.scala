@@ -65,8 +65,7 @@ sealed trait Game {
   }
 
   // Gets the route from one tile to another
-  def route(from: Tile) = new {
-    def to(target: Tile): List[Tile] = {
+  def route(from: Tile, target: Tile, occupiedTiles: HashSet[Tile] = HashSet.empty[Tile]) = {
       // Use the A* algorithm
 
       val openList = new ListBuffer[Tile]
@@ -87,7 +86,7 @@ sealed trait Game {
           openList.clear()
         }
         else{
-          val neighbours = neighboursOf(currentTile).filter(t => !board.water.contains(t) && !closedList.contains(t))
+          val neighbours = neighboursOf(currentTile).filter(t => !board.water.contains(t) && !occupiedTiles.contains(t) && !closedList.contains(t))
           neighbours.foreach(neighbour => {
               if (!openList.contains(neighbour)){
                 // Add to openList and compute it's score A + B
@@ -119,10 +118,7 @@ sealed trait Game {
         currentTile = parents.apply(currentTile)
       }
 
-      System.err.println("route length: " + bestRoute.length)
-
       bestRoute.reverse.toList
     }
-  }
 }
 
