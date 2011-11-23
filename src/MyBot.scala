@@ -14,8 +14,20 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
 
     ants.flatMap{ant =>
-      val foodToEat = game.board.food.head._1
-      val nextTile = game.route(ant.tile, foodToEat, occupiedTiles).head
+      var nextTile = game.tile(North).of(ant.tile) // HACK
+
+      if (!game.board.food.isEmpty){
+        val foodToEat = game.board.food.head._1
+        nextTile = game.route(ant.tile, foodToEat, occupiedTiles).head
+      }
+      else{
+        val direction = directions.find{aim =>
+          val targetTile = game.tile(aim).of(ant.tile)
+          !game.board.water.contains(targetTile) && !occupiedTiles.contains(targetTile)
+          game.tile(aim).of(ant.tile) == nextTile
+        }.get
+        nextTile = game.tile(direction).of(ant.tile)
+      }
 
       val direction = directions.find{aim =>
         game.tile(aim).of(ant.tile) == nextTile
@@ -24,7 +36,7 @@ class MyBot extends Bot {
       // convert this (possible) direction into an order for this ant
       val order = direction.map{d => Order(ant.tile, d)}
 
-      if (direction != null){
+      if (direction != Nil){
         occupiedTiles += game.tile(direction.get).of(ant.tile)
       }
 
