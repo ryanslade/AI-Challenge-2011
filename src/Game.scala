@@ -75,7 +75,6 @@ sealed trait Game {
 
       openList += from
       scores += from -> 0
-
       while (!openList.isEmpty){
         val currentTile = openList.sortBy(t => scores.apply(t)).head
         closedList += currentTile
@@ -109,11 +108,10 @@ sealed trait Game {
       }
 
       // Should have the path now, walk backwards along the parent
-
       val bestRoute = new ListBuffer[Tile]
       var currentTile = target
 
-      while (currentTile != from){
+      while (currentTile != from && parents.contains(currentTile)){
         bestRoute += currentTile
         currentTile = parents.apply(currentTile)
       }

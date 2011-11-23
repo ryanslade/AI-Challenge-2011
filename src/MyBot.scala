@@ -18,11 +18,18 @@ class MyBot extends Bot {
 
       if (!game.board.enemyHills.isEmpty){
         val target = game.board.enemyHills.head._1
-        nextTile = game.route(ant.tile, target, occupiedTiles).head
+        val route = game.route(ant.tile, target, occupiedTiles)
+        if (!route.isEmpty){
+          nextTile = route.head
+        }
+
       }
       else if (!game.board.food.isEmpty){
         val foodToEat = game.board.food.head._1
-        nextTile = game.route(ant.tile, foodToEat, occupiedTiles).head
+        val route = game.route(ant.tile, foodToEat, occupiedTiles)
+        if (!route.isEmpty){
+          nextTile = route.head
+        }
       }
       else{
         val direction = directions.find{aim =>
