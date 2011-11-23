@@ -64,6 +64,14 @@ sealed trait Game {
     List(this.tile(North).of(tile), this.tile(East).of(tile), this.tile(South).of(tile), this.tile(West).of(tile))
   }
 
+  def closestTo(target: Tile, limit: Int = 1) = {
+    board.myAnts.values.toList.sortBy(a => distanceFrom(a.tile).to(target)).take(limit)
+  }
+
+  def closestFood(ant: MyAnt) = {
+    board.food.keys.toList.sortBy(f => distanceFrom(ant.tile).to(f)).head
+  }
+
   // Gets the route from one tile to another
   def route(from: Tile, target: Tile, occupiedTiles: HashSet[Tile] = HashSet.empty[Tile]) = {
       // Use the A* algorithm
@@ -85,7 +93,7 @@ sealed trait Game {
           openList.clear()
         }
         else{
-          val neighbours = neighboursOf(currentTile).filter(t => !board.water.contains(t) && !occupiedTiles.contains(t) && !closedList.contains(t))
+          val neighbours = neighboursOf(currentTile).filter(t => !board.water.contains(t) && !board.myHills.contains(t) && !occupiedTiles.contains(t) && !closedList.contains(t))
           neighbours.foreach(neighbour => {
               if (!openList.contains(neighbour)){
                 // Add to openList and compute it's score A + B
