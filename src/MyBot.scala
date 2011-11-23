@@ -16,7 +16,11 @@ class MyBot extends Bot {
     ants.flatMap{ant =>
       var nextTile = game.tile(North).of(ant.tile) // HACK
 
-      if (!game.board.food.isEmpty){
+      if (!game.board.enemyHills.isEmpty){
+        val target = game.board.enemyHills.head._1
+        nextTile = game.route(ant.tile, target, occupiedTiles).head
+      }
+      else if (!game.board.food.isEmpty){
         val foodToEat = game.board.food.head._1
         nextTile = game.route(ant.tile, foodToEat, occupiedTiles).head
       }
