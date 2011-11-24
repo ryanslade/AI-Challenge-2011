@@ -1,5 +1,5 @@
 import collection.mutable.{ListBuffer, HashMap, HashSet}
-import scala.math.{abs,min,pow}
+import scala.math.{abs,min,max,pow}
 
 case class GameInProgress(turn: Int = 0, parameters: GameParameters = GameParameters(), board: Board = Board()) extends Game {
   val gameOver = false
@@ -26,8 +26,8 @@ sealed trait Game {
 
   def manhattaDistanceFrom(one: Tile) = new {
     def to(another: Tile): Int = {
-      // Need to update this to take into account the torus shape
-      abs(one.row - another.row) + abs(one.column - another.column)
+      min(abs(one.row - another.row), min(one.row, another.row)+(parameters.rows-max(one.row, another.row)))
+       + min(abs(one.column - another.column), min(one.column, another.column)+(parameters.columns-max(one.column, another.column)))
     }
   }
 
