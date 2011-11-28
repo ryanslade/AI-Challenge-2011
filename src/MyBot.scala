@@ -25,6 +25,9 @@ class MyBot extends Bot {
             if (game.board.food.contains(tile)){
               newMap += (row, col) -> maxValue
             }
+            else if (game.visibility((row, col)) == 0){
+              newMap += (row, col) -> maxValue/2
+            }
             else{
               // Do diffusal
               val northTile = game.tile(North).of(tile)
@@ -52,16 +55,17 @@ class MyBot extends Bot {
   }
 
   def getEmptyDiffusionMap = {
-    new HashMap[(Int, Int), Int]  { override def default(key:(Int, Int)) = 1 }
+    new HashMap[(Int, Int), Int] { override def default(key:(Int, Int)) = 1 }
   }
 
   def ordersFrom(game: Game): Set[Order] = {
+    game.setupVisibility
 
     val directions = List(North, East, South, West)
     val ants = game.board.myAnts.values
     val occupiedTiles = new HashSet[Tile]
 
-    val iterations = 20
+    val iterations = 10
     //val startTime = System.currentTimeMillis()
     val diffusionMap = diffuse(game, iterations)
 
@@ -76,9 +80,12 @@ class MyBot extends Bot {
         nextTile.nonEmpty && game.tile(aim).of(ant.tile) == nextTile.head
       }
 
-      if (!direction.isEmpty){
-        // Add new position and remove old
+      if (direction.nonEmpty){
         occupiedTiles += game.tile(direction.head).of(ant.tile)
+      }
+      else{
+        // In case ant hasn't moved for some reason
+        occupiedTiles += ant.tile
       }
 
       // convert this (possible) direction into an order for this ant

@@ -1,10 +1,11 @@
-import annotation.tailrec
+import collection.mutable.HashMap
 import io.Source
 import util.matching.Regex
+import scala.math.sqrt
 
 object Parser {
 
-  def parse(source: Source, params: GameParameters = GameParameters(), knownWater: Map[Tile, Water] = Map.empty) = {
+  def parse(source: Source, params: GameParameters = GameParameters(), knownWater: Map[Tile, Water] = Map.empty, knownVisibility: HashMap[(Int, Int), Int] = HashMap.empty[(Int, Int), Int]) = {
     val lines = source.getLines
 
     def parseInternal(state: GameInProgress): Game = {
@@ -17,13 +18,14 @@ object Parser {
           regularExpressions.find{case(regex, _) => line.matches(regex.toString)}.map{case(regex, f) =>
             val regex(value) = line
             val values = value.split(" ").map(_.toInt)
+
             parseInternal(f(state, values))
           }.getOrElse(parseInternal(state))
         }
       }
     }
 
-    parseInternal(GameInProgress(parameters = params, board = Board(water = knownWater)))
+    parseInternal(GameInProgress(parameters = params, board = Board(water = knownWater), visibility = knownVisibility))
   }
 
   // The sequence of these is important. The parser will invoke the first that matches.
