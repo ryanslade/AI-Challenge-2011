@@ -17,7 +17,7 @@ class MyBot extends Bot {
         (0 to game.parameters.columns).foreach{col =>
           val tile = Tile(row = row, column = col)
 
-          if (game.board.water.contains(tile))
+          if (game.board.water.contains(tile) || game.board.myAnts.contains(tile))
           {
             newMap += (row, col) -> 0
           }
@@ -70,7 +70,7 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val iterations = 20
+    val iterations = 25
     //val startTime = System.currentTimeMillis()
     val diffusionMap = diffuse(game, iterations)
 
