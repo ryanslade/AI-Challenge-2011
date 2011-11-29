@@ -5,14 +5,15 @@ import scala.math.sqrt
 
 object Parser {
 
-  def parse(source: Source, params: GameParameters = GameParameters(), knownWater: Map[Tile, Water] = Map.empty, knownVisibility: HashMap[(Int, Int), Int] = HashMap.empty[(Int, Int), Int]) = {
+  def parse(source: Source, params: GameParameters = GameParameters(), knownWater: Map[Tile, Water] = Map.empty, knownVisibility: Array[Array[Int]] = Array.empty) = {
     val lines = source.getLines
 
     def parseInternal(state: GameInProgress): Game = {
       val line = lines.next.trim
       line match {
         case "" => parseInternal(state)
-        case "go" | "ready" => state
+        case "go" => state
+        case "ready" => state.copy(visibility = Array.ofDim[Int](state.parameters.rows, state.parameters.columns))
         case "end" => GameOver(turn = state.turn, parameters = state.parameters, board = state.board)
         case _ => {
           regularExpressions.find{case(regex, _) => line.matches(regex.toString)}.map{case(regex, f) =>

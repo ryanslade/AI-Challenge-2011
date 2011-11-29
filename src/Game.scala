@@ -4,7 +4,7 @@ import scala.math.{abs,min,max,pow}
 case class GameInProgress(turn: Int = 0,
                           parameters: GameParameters = GameParameters(),
                           board: Board = Board(),
-                          visibility: HashMap[(Int, Int), Int] = new HashMap[(Int, Int), Int] { override def default(key:(Int, Int)) = 0 }) extends Game {
+                          visibility: Array[Array[Int]] = Array.empty) extends Game {
   val gameOver = false
   def including[P <: Positionable](positionable: P) = this.copy(board = this.board including positionable)
   def including(p: Positionable*): GameInProgress = p.foldLeft(this){(game, positionable) => game.including(positionable)}
@@ -12,7 +12,7 @@ case class GameInProgress(turn: Int = 0,
 case class GameOver(turn: Int = 0, 
                     parameters: GameParameters = GameParameters(), 
                     board: Board = Board(),
-                    visibility: HashMap[(Int, Int), Int] = HashMap.empty ) extends Game {
+                    visibility: Array[Array[Int]] = Array.empty ) extends Game {
   val gameOver = true
 }
 
@@ -21,9 +21,10 @@ sealed trait Game {
   val parameters: GameParameters
   val board: Board
   val gameOver: Boolean
-  val visibility: HashMap[(Int, Int), Int]
+  val visibility: Array[Array[Int]]
 
   def setupVisibility = {
+
     for (row <- 0 to parameters.rows-1){
       for (col <- 0 to parameters.columns-1){
         val thisTile = Tile(row = row, column = col)
@@ -33,7 +34,7 @@ sealed trait Game {
         if (board.myAnts.keys.exists{a =>
           distanceFrom(thisTile).to(a) <= parameters.viewRadius
         }){
-          visibility += (row, col) -> turn
+          visibility(row)(col) = turn
         }
 
       }

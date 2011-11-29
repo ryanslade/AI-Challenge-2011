@@ -14,7 +14,7 @@ class AntsGame(in: InputStream = System.in, out: OutputStream = System.out) {
         val newGameState = Parser.parse(source, game.parameters, game.board.water, game.visibility)
         if (newGameState.gameOver) Unit
         else {
-          val orders = bot.ordersFrom(newGameState)
+          val orders = if (newGameState.turn == 0) Set.empty else bot.ordersFrom(newGameState)
           orders.map(_.inServerSpeak).foreach(writer.write)
           writer.write("go\n")
           writer.flush
