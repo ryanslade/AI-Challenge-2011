@@ -63,9 +63,11 @@ class MyBot extends Bot {
 
     val directions = List(North, East, South, West)
     val ants = game.board.myAnts.values
-    val occupiedTiles = new HashSet[Tile]
 
-    val iterations = 10
+    val occupiedTiles = new HashSet[Tile]
+    ants.foreach(ant => occupiedTiles += ant.tile)
+
+    val iterations = 20
     //val startTime = System.currentTimeMillis()
     val diffusionMap = diffuse(game, iterations)
 
@@ -81,11 +83,8 @@ class MyBot extends Bot {
       }
 
       if (direction.nonEmpty){
+        occupiedTiles -= ant.tile
         occupiedTiles += game.tile(direction.head).of(ant.tile)
-      }
-      else{
-        // In case ant hasn't moved for some reason
-        occupiedTiles += ant.tile
       }
 
       // convert this (possible) direction into an order for this ant
