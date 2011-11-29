@@ -11,7 +11,7 @@ class AntsGame(in: InputStream = System.in, out: OutputStream = System.out) {
     try {
 
       def playNextTurn(game: Game): Unit = {
-        val newGameState = Parser.parse(source, game.parameters, game.board.water)
+        val newGameState = Parser.parse(source, game.parameters, game.board.water, game.visibility)
         if (newGameState.gameOver) Unit
         else {
           val orders = bot.ordersFrom(newGameState)

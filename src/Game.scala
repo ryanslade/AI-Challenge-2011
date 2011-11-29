@@ -1,12 +1,18 @@
 import collection.mutable.{ListBuffer, HashMap, HashSet}
 import scala.math.{abs,min,max,pow}
 
-case class GameInProgress(turn: Int = 0, parameters: GameParameters = GameParameters(), board: Board = Board()) extends Game {
+case class GameInProgress(turn: Int = 0,
+                          parameters: GameParameters = GameParameters(),
+                          board: Board = Board(),
+                          visibility: HashMap[(Int, Int), Int] = new HashMap[(Int, Int), Int] { override def default(key:(Int, Int)) = 0 }) extends Game {
   val gameOver = false
   def including[P <: Positionable](positionable: P) = this.copy(board = this.board including positionable)
   def including(p: Positionable*): GameInProgress = p.foldLeft(this){(game, positionable) => game.including(positionable)}
 }
-case class GameOver(turn: Int = 0, parameters: GameParameters = GameParameters(), board: Board = Board()) extends Game {
+case class GameOver(turn: Int = 0, 
+                    parameters: GameParameters = GameParameters(), 
+                    board: Board = Board(),
+                    visibility: HashMap[(Int, Int), Int] = HashMap.empty ) extends Game {
   val gameOver = true
 }
 
@@ -15,6 +21,24 @@ sealed trait Game {
   val parameters: GameParameters
   val board: Board
   val gameOver: Boolean
+  val visibility: HashMap[(Int, Int), Int]
+
+  def setupVisibility = {
+    for (row <- 0 to parameters.rows-1){
+      for (col <- 0 to parameters.columns-1){
+        val thisTile = Tile(row = row, column = col)
+        // If any of my ants are in the view radius then it is visible
+        // Set visibilty of tiles viewable in this round to the round number
+
+        if (board.myAnts.keys.exists{a =>
+          distanceFrom(thisTile).to(a) <= parameters.viewRadius
+        }){
+          visibility += (row, col) -> turn
+        }
+
+      }
+    }
+  }
 
   def distanceFrom(one: Tile) = new {
     def to(another: Tile) = {
