@@ -25,8 +25,11 @@ class MyBot extends Bot {
             if (game.board.food.contains(tile)){
               newMap += (row, col) -> maxValue
             }
-            else if (game.visibility((row, col)) == 0){
+            else if(game.board.enemyHills.contains(tile)){
               newMap += (row, col) -> maxValue/2
+            }
+            else if (game.visibility((row, col)) == 0){
+              newMap += (row, col) -> maxValue/3
             }
             else{
               // Do diffusal
