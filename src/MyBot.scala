@@ -70,16 +70,16 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val iterations = 25
-    //val startTime = System.currentTimeMillis()
+    val iterations = 20
+    val startTime = System.currentTimeMillis()
     val diffusionMap = diffuse(game, iterations)
 
-    //System.err.println("Did "+iterations+" in "+ (System.currentTimeMillis()- startTime).toString +"ms")
+    System.err.println("Did "+iterations+" in "+ (System.currentTimeMillis()- startTime).toString +"ms")
 
     val result = ants.flatMap{ant =>
       // Pick the direction with the highest food smell
       val neighbours = game.neighboursOf(ant.tile).sortBy(n => diffusionMap((n.row, n.column))).reverse
-      val nextTile = neighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n))
+      val nextTile = neighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n))
 
       val direction = directions.find{aim =>
         nextTile.nonEmpty && game.tile(aim).of(ant.tile) == nextTile.head
