@@ -1,4 +1,5 @@
-import collection.mutable.{HashMap, HashSet}
+import collection.mutable.{HashSet}
+import scala.math.max
 
 object MyBot extends App {
   new AntsGame().run(new MyBot)
@@ -58,9 +59,9 @@ class MyBot extends Bot {
       oldMap = newMap.clone()
 
       iterations += 1
-      averageTime = (System.currentTimeMillis() - diffusionStartTime)/iterations
+      averageTime = max(1, (System.currentTimeMillis() - diffusionStartTime)/iterations)
       val timeLeftInTurn = game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)
-      bailout = (averageTime > (timeLeftInTurn-bailoutMilliseconds))
+      bailout = ((averageTime > (timeLeftInTurn-bailoutMilliseconds)) || iterations > maxIterations)
     }
 
     System.err.println("Managed to do: " + iterations + " iterations. (Average "+averageTime +")")
@@ -79,9 +80,10 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val maxIterations = 200
-    val diffusionMap = diffuse(game, maxIterations, 5)
+    val maxIterations = 300
+    val diffusionMap = diffuse(game, maxIterations, 20)
 
+    System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
     val result = ants.flatMap{ant =>
       // Pick the direction with the highest food smell
