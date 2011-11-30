@@ -30,16 +30,20 @@ sealed trait Game {
 
     for (row <- 0 to parameters.rows-1){
       for (col <- 0 to parameters.columns-1){
-        val thisTile = Tile(row = row, column = col)
-        // If any of my ants are in the view radius then it is visible
-        // Set visibilty of tiles viewable in this round to the round number
+        // Only store the first time we've seen something
+        if (visibility(row)(col) == 0){
 
-        if (board.myAnts.keys.exists{a =>
-          distanceFrom(thisTile).to(a) <= parameters.viewRadius
-        }){
-          visibility(row)(col) = turn
+          val thisTile = Tile(row = row, column = col)
+
+          // If any of my ants are in the view radius then it is visible
+          // Set visibilty of tiles viewable in this round to the round number
+          if (board.myAnts.keys.exists{a =>
+            distanceFrom(thisTile).to(a) <= parameters.viewRadius
+          }){
+            visibility(row)(col) = turn
+          }
+
         }
-
       }
     }
   }
