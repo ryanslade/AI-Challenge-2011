@@ -4,7 +4,8 @@ import scala.math.{abs,min,max,pow}
 case class GameInProgress(turn: Int = 0,
                           parameters: GameParameters = GameParameters(),
                           board: Board = Board(),
-                          visibility: Array[Array[Int]] = Array.empty) extends Game {
+                          visibility: Array[Array[Int]] = Array.empty,
+                          turnStartTime: Long = System.currentTimeMillis()) extends Game {
   val gameOver = false
   def including[P <: Positionable](positionable: P) = this.copy(board = this.board including positionable)
   def including(p: Positionable*): GameInProgress = p.foldLeft(this){(game, positionable) => game.including(positionable)}
@@ -12,7 +13,8 @@ case class GameInProgress(turn: Int = 0,
 case class GameOver(turn: Int = 0, 
                     parameters: GameParameters = GameParameters(), 
                     board: Board = Board(),
-                    visibility: Array[Array[Int]] = Array.empty ) extends Game {
+                    visibility: Array[Array[Int]] = Array.empty,
+                    turnStartTime: Long = System.currentTimeMillis()) extends Game {
   val gameOver = true
 }
 
@@ -22,6 +24,7 @@ sealed trait Game {
   val board: Board
   val gameOver: Boolean
   val visibility: Array[Array[Int]]
+  val turnStartTime: Long
 
   def setupVisibility = {
 

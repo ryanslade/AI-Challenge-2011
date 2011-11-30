@@ -5,12 +5,17 @@ object MyBot extends App {
 }
 
 class MyBot extends Bot {
-  def diffuse(game: Game, iterations: Int = 1) = {
+  def diffuse(game: Game, maxIterations: Int = 200, bailoutMilliseconds: Long = 5) = {
     val maxValue = 1000000
     var newMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
     var oldMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
 
-    for (i <- 1 to iterations){
+    var bailout = false
+    var averageTime: Long = 0
+    var iterations: Long = 0
+    val diffusionStartTime = System.currentTimeMillis()
+
+    while (!bailout){
       newMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
 
       (0 to game.parameters.rows-1).foreach{row =>
@@ -51,8 +56,15 @@ class MyBot extends Bot {
       }
 
       oldMap = newMap.clone()
+
+      iterations += 1
+      averageTime = (System.currentTimeMillis() - diffusionStartTime)/iterations
+      val timeLeftInTurn = game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)
+      bailout = (averageTime > (timeLeftInTurn-bailoutMilliseconds))
     }
 
+    System.err.println("Managed to do: " + iterations + " iterations. (Average "+averageTime +")")
+    
     oldMap
   }
 
@@ -67,11 +79,8 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val iterations = 100
-    val startTime = System.currentTimeMillis()
-    val diffusionMap = diffuse(game, iterations)
-
-    System.err.println("Did "+iterations+" in "+ (System.currentTimeMillis()- startTime).toString +"ms")
+    val maxIterations = 200
+    val diffusionMap = diffuse(game, maxIterations, 5)
 
     val antTime = System.currentTimeMillis()
     val result = ants.flatMap{ant =>

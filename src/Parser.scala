@@ -5,7 +5,11 @@ import scala.math.sqrt
 
 object Parser {
 
-  def parse(source: Source, params: GameParameters = GameParameters(), knownWater: Map[Tile, Water] = Map.empty, knownVisibility: Array[Array[Int]] = Array.empty) = {
+  def parse(source: Source,
+            params: GameParameters = GameParameters(),
+            knownWater: Map[Tile, Water] = Map.empty,
+            knownVisibility: Array[Array[Int]] = Array.empty) = {
+    
     val lines = source.getLines
 
     def parseInternal(state: GameInProgress): Game = {
