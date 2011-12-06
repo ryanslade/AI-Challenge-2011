@@ -7,9 +7,14 @@ object MyBot extends App {
 
 class MyBot extends Bot {
   def diffuse(game: Game, maxIterations: Int = 200, bailoutMilliseconds: Long = 5) = {
-    val maxValue = 1000000
-    var newMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
-    var oldMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+    val maxValue = Int.MaxValue/4 // Need to divide by 4 since we are averaging lower down
+    val minValue = -maxValue
+
+    var newFoodMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+    var oldFoodMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+
+    var newExploreMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+    var oldExploreMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
 
     var bailout = false
     var averageTime: Long = 0
@@ -17,46 +22,77 @@ class MyBot extends Bot {
     val diffusionStartTime = System.currentTimeMillis()
 
     while (!bailout){
-      newMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+      newFoodMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
+      newExploreMap = Array.ofDim[Int](game.parameters.rows, game.parameters.columns)
 
       (0 to game.parameters.rows-1).foreach{row =>
         (0 to game.parameters.columns-1).foreach{col =>
           val tile = Tile(row = row, column = col)
+          var doFood = true
+          var doExplore = true
 
-          if (game.board.water.contains(tile) || game.board.myAnts.contains(tile))
+          if ((game.board.water.contains(tile) || game.board.myAnts.contains(tile)) && (!game.board.myHills.contains(tile)))
           {
-            newMap(row)(col) = 0
+            // Sometimes ants are on hills in which case we don't want to set it to minvalue
+            newFoodMap(row)(col) = 0
+            newExploreMap(row)(col) = 0
           }
           else{
+            // Food and hills
             if (game.board.food.contains(tile)){
-              newMap(row)(col) = maxValue
+              newFoodMap(row)(col) = maxValue
+              doFood = false
             }
             else if(game.board.enemyHills.contains(tile)){
-              newMap(row)(col) = maxValue/2
+              newFoodMap(row)(col) = maxValue/2
+              doFood = false
             }
-            else if (game.visibility(row)(col) == 0){
-              newMap(row)(col) = maxValue/3
+
+            if (game.visibility(row)(col) != game.turn){
+              if (game.visibility(row)(col) == 0){
+                newExploreMap(row)(col) = maxValue
+              }
+              else{
+                newExploreMap(row)(col) = maxValue - 100*(game.parameters.turns - game.visibility(row)(col))
+              }
+              doExplore = false
             }
-            else{
-              // Do diffusal
+
+            if (doFood || doExplore){
               val northTile = game.tile(North).of(tile)
               val eastTile = game.tile(East).of(tile)
               val southTile = game.tile(South).of(tile)
               val westTile = game.tile(West).of(tile)
 
-              val north = oldMap(northTile.row)(northTile.column)
-              val east = oldMap(eastTile.row)(eastTile.column)
-              val south = oldMap(southTile.row)(southTile.column)
-              val west = oldMap(westTile.row)(westTile.column)
+              if (doFood){
+                // Diffuse food
+                val northFood = oldFoodMap(northTile.row)(northTile.column)
+                val eastFood = oldFoodMap(eastTile.row)(eastTile.column)
+                val southFood = oldFoodMap(southTile.row)(southTile.column)
+                val westFood = oldFoodMap(westTile.row)(westTile.column)
 
-              val newValue = (0.25 * (north + east + south + west)).toInt
-              newMap(tile.row)(tile.column) = newValue
+                val newValue = (0.25 * (northFood + eastFood + southFood + westFood)).toInt
+                newFoodMap(tile.row)(tile.column) = newValue
+              }
+
+              if (doExplore){
+                // Diffuse explore
+                val northExplore = oldExploreMap(northTile.row)(northTile.column)
+                val eastExplore = oldExploreMap(eastTile.row)(eastTile.column)
+                val southExplore = oldExploreMap(southTile.row)(southTile.column)
+                val westExplore = oldExploreMap(westTile.row)(westTile.column)
+
+                val newValue = (0.25 * (northExplore + eastExplore + southExplore + westExplore)).toInt
+                newExploreMap(tile.row)(tile.column) = newValue
+              }
             }
+
           }
         }
       }
 
-      oldMap = newMap.clone()
+      oldFoodMap = newFoodMap.clone()
+      oldExploreMap = newExploreMap.clone()
 
       iterations += 1
       averageTime = max(1, (System.currentTimeMillis() - diffusionStartTime)/iterations)
@@ -66,10 +102,16 @@ class MyBot extends Bot {
 
     System.err.println("Managed to do: " + iterations + " iterations. (Average "+averageTime +")")
     
-    oldMap
+    (oldFoodMap, oldExploreMap)
   }
 
   def ordersFrom(game: Game): Set[Order] = {
+
+    def neighboursSortedByMap(neighbours: List[Tile],  diffusionMap: Array[Array[Int]], occupiedTiles: HashSet[Tile]) = {
+      val sortedNeighbours = neighbours.sortBy(n => diffusionMap(n.row)(n.column)).reverse
+      sortedNeighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n) && (diffusionMap(n.row)(n.column) != 0))
+    }
+
     val visTime = System.currentTimeMillis()
     game.setupVisibility
     System.err.println("Vis time: "+ (System.currentTimeMillis() - visTime).toString +"ms")
@@ -80,15 +122,21 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val maxIterations = 300
-    val diffusionMap = diffuse(game, maxIterations, 20)
+    val diffusionMaps = diffuse(game, 300, 20)
 
     System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
     val result = ants.flatMap{ant =>
-      // Pick the direction with the highest food smell
-      val neighbours = game.neighboursOf(ant.tile).sortBy(n => diffusionMap(n.row)(n.column)).reverse
-      val nextTile = neighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n))
+      val neighbours = game.neighboursOf(ant.tile)
+
+      var nextTile = Option.empty[Tile]
+      // Pick the direction with the highest food smell (if any)
+      nextTile = neighboursSortedByMap(neighbours, diffusionMaps._1, occupiedTiles)
+
+      if (nextTile.isEmpty){
+        // Next try and explore
+        nextTile = neighboursSortedByMap(neighbours, diffusionMaps._2, occupiedTiles)
+      }
 
       val direction = directions.find{aim =>
         nextTile.nonEmpty && game.tile(aim).of(ant.tile) == nextTile.head
