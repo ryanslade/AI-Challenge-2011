@@ -8,6 +8,8 @@ object MyBot extends App {
 class MyBot extends Bot {
   var oldFoodMap = Array.empty[Array[Double]]
   var oldExploreMap = Array.empty[Array[Double]]
+
+  var knownEnemyHills = HashSet.empty[Tile]
   
   def diffuse(game: Game, maxIterations: Int = 200, bailoutMilliseconds: Long = 5) = {
     val maxValue = Float.MaxValue/4 // Need to divide by 4 since we are averaging lower down
@@ -43,22 +45,21 @@ class MyBot extends Bot {
 
           if (game.board.water.contains(tile))
           {
-            // Sometimes ants are on hills in which case we don't want to set it to minvalue
             newFoodMap(row)(col) = 0
             newExploreMap(row)(col) = 0
           }
           else{
             if (game.board.myAnts.contains(tile)){
               foodDiffuseFactor = 0.1
-              exploreDiffuseFactor = 0.1
+              exploreDiffuseFactor = 0.8
             }
             // Food and hills
             else if (game.board.food.contains(tile)){
               newFoodMap(row)(col) = maxValue
               doFood = false
             }
-            else if(game.board.enemyHills.contains(tile)){
-              newFoodMap(row)(col) = maxValue/2
+            else if(knownEnemyHills.contains(tile)){
+              newFoodMap(row)(col) = maxValue
               doFood = false
             }
 
@@ -67,7 +68,7 @@ class MyBot extends Bot {
                 newExploreMap(row)(col) = maxValue
               }
               else{
-                newExploreMap(row)(col) = maxValue //- 100*(game.parameters.turns - game.visibility(row)(col))
+                newExploreMap(row)(col) = (maxValue/game.parameters.turns) * (game.parameters.turns - game.visibility(row)(col))
               }
               doExplore = false
             }
@@ -126,6 +127,22 @@ class MyBot extends Bot {
       sortedNeighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n) && (diffusionMap(n.row)(n.column) != 0))
     }
 
+    def updateEnemyHills() {
+      // Add all hills to known hills
+      game.board.enemyHills.keys.foreach{ h =>
+        knownEnemyHills += h
+      }
+
+      // Remove enemy hills we have razed
+      knownEnemyHills.foreach{ h =>
+        if (game.board.myAnts.keys.toList.contains(h)){
+          knownEnemyHills -= h
+        }
+      }
+    }
+
+    updateEnemyHills()
+
     val visTime = System.currentTimeMillis()
     game.setupVisibility
     System.err.println("Vis time: "+ (System.currentTimeMillis() - visTime).toString +"ms")
@@ -136,7 +153,7 @@ class MyBot extends Bot {
     val occupiedTiles = new HashSet[Tile]
     ants.foreach(ant => occupiedTiles += ant.tile)
 
-    val diffusionMaps = diffuse(game, 300, 20)
+    val diffusionMaps = diffuse(game, 300, 30)
 
     System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
