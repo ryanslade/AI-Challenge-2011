@@ -64,12 +64,7 @@ class MyBot extends Bot {
             }
 
             if (game.visibility(row)(col) != game.turn){
-              if (game.visibility(row)(col) == 0){
-                newExploreMap(row)(col) = maxValue
-              }
-              else{
-                newExploreMap(row)(col) = (maxValue/game.parameters.turns) * (game.parameters.turns - game.visibility(row)(col))
-              }
+              newExploreMap(row)(col) = (maxValue/game.parameters.turns) * (game.parameters.turns - game.visibility(row)(col))
               doExplore = false
             }
 
