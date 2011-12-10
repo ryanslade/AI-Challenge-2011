@@ -50,8 +50,8 @@ class MyBot extends Bot {
           }
           else{
             if (game.board.myAnts.contains(tile)){
-              foodDiffuseFactor = 0.1
-              exploreDiffuseFactor = 0.8
+              foodDiffuseFactor = 0.2
+              exploreDiffuseFactor = 0.5
             }
             // Food and hills
             else if (game.board.food.contains(tile)){

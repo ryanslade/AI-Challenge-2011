@@ -1,5 +1,5 @@
 import collection.mutable.{ListBuffer, HashMap, HashSet}
-import scala.math.{abs,min,max,pow}
+import scala.math.{abs,min,max,pow,sqrt}
 
 case class GameInProgress(turn: Int = 0,
                           parameters: GameParameters = GameParameters(),
@@ -28,23 +28,53 @@ sealed trait Game {
 
   def setupVisibility = {
 
-    for (row <- 0 to parameters.rows-1){
-      for (col <- 0 to parameters.columns-1){
-        if (visibility(row)(col) != turn){
-          val thisTile = Tile(row = row, column = col)
-
-          // If any of my ants are in the view radius then it is visible
-          // Set visibilty of tiles viewable in this round to the round number
-          if (board.myAnts.keys.exists{a =>
-            distanceFrom(thisTile).to(a) <= parameters.viewRadius
-          }){
-            visibility(row)(col) = turn
-          }
+    // Work out vision offset
+    val radius = (sqrt(parameters.viewRadius)+1).toInt
+    // Top left corner of approximate view
+    //val middle = Tile(row = parameters.rows/2, column = parameters.columns/2)
+    val middle = Tile(row = 28, column = 19)
+    val topLeft = Tile(row = middle.row-radius, column = middle.column-radius)
+    val offsets = HashSet.empty[(Int,  Int)]
+    for (x <- 0 to radius*2){
+      for (y <- 0 to radius*2){
+        val thisTile = Tile(row = topLeft.row+x, column = topLeft.column+y)
+        if (distanceFrom(thisTile).to(middle) <= parameters.viewRadius){
+          offsets += ((thisTile.row-middle.row, thisTile.column-middle.column))
         }
       }
     }
+
+    // Use the offsets to figure out which tiles are visible
+    for (antTile <- board.myAnts.keys){
+      for (offset <- offsets){
+        val coord = normalise(antTile.row, antTile.column, offset._1, offset._2)
+        visibility(coord._1)(coord._2) = turn
+      }
+    }
+
   }
 
+  def normalise(row: Int, col: Int, mRow: Int, mCol: Int) = {
+    var newRow = row+mRow
+    var newCol = col+mCol
+
+    if (newRow > parameters.rows-1){
+      newRow -= parameters.rows
+    }
+    else if (newRow < 0){
+      newRow += parameters.rows
+    }
+    
+    if (newCol > parameters.columns-1){
+      newCol -= parameters.columns
+    }
+    else if (newCol < 0){
+      newCol += parameters.columns
+    }
+
+    (newRow, newCol)
+  }
+  
   def distanceFrom(one: Tile) = new {
     def to(another: Tile) = {
       val dRow = abs(one.row - another.row)
