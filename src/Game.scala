@@ -26,23 +26,26 @@ sealed trait Game {
   val visibility: Array[Array[Int]]
   val turnStartTime: Long
 
-  def setupVisibility = {
-
-    // Work out vision offset
-    val radius = (sqrt(parameters.viewRadius)+1).toInt
+  def getOffsets (squaredRadius: Int): HashSet[(Int, Int)] = {
+    val radius = (sqrt(squaredRadius)+1).toInt
     // Top left corner of approximate view
-    //val middle = Tile(row = parameters.rows/2, column = parameters.columns/2)
-    val middle = Tile(row = 28, column = 19)
+    val middle = Tile(row = parameters.rows/2, column = parameters.columns/2)
     val topLeft = Tile(row = middle.row-radius, column = middle.column-radius)
     val offsets = HashSet.empty[(Int,  Int)]
     for (x <- 0 to radius*2){
       for (y <- 0 to radius*2){
         val thisTile = Tile(row = topLeft.row+x, column = topLeft.column+y)
-        if (distanceFrom(thisTile).to(middle) <= parameters.viewRadius){
+        if (distanceFrom(thisTile).to(middle) <= squaredRadius){
           offsets += ((thisTile.row-middle.row, thisTile.column-middle.column))
         }
       }
     }
+
+    offsets
+  }
+
+  def setupVisibility() {
+    val offsets = getOffsets(parameters.viewRadius)
 
     // Use the offsets to figure out which tiles are visible
     for (antTile <- board.myAnts.keys){

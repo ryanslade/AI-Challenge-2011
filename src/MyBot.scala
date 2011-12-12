@@ -10,7 +10,9 @@ class MyBot extends Bot {
   var oldExploreMap = Array.empty[Array[Double]]
 
   var knownEnemyHills = HashSet.empty[Tile]
-  
+
+  var attackMap = Array.empty[Array[Double]]
+
   def diffuse(game: Game, maxIterations: Int = 200, bailoutMilliseconds: Long = 5) = {
     val maxValue = Float.MaxValue/4 // Need to divide by 4 since we are averaging lower down
     val minValue = -maxValue
@@ -50,7 +52,7 @@ class MyBot extends Bot {
           }
           else{
             if (game.board.myAnts.contains(tile)){
-              foodDiffuseFactor = 0.1
+              foodDiffuseFactor = 0
               exploreDiffuseFactor = 0.5
             }
             // Food and hills
@@ -119,7 +121,7 @@ class MyBot extends Bot {
 
     def neighboursSortedByMap(neighbours: List[Tile],  diffusionMap: Array[Array[Double]], occupiedTiles: HashSet[Tile]) = {
       val sortedNeighbours = neighbours.sortBy(n => diffusionMap(n.row)(n.column)).reverse
-      sortedNeighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n) && (diffusionMap(n.row)(n.column) != 0))
+      sortedNeighbours.find(n => !game.board.water.contains(n) && !occupiedTiles.contains(n) && !game.board.myHills.contains(n) && (diffusionMap(n.row)(n.column) != 0) && attackMap(n.row)(n.column) >= 1)
     }
 
     def updateEnemyHills() {
@@ -136,10 +138,80 @@ class MyBot extends Bot {
       }
     }
 
+    def updateAttackMap() {
+      attackMap = Array.ofDim(game.parameters.rows, game.parameters.columns)
+
+      var offsets = game.getOffsets(game.parameters.attackRadius)
+      val originalOffsets = offsets.clone()
+
+      // Extend attack radius by one square to show all possible the ant COULD attack in the next round
+      for (offset <- originalOffsets){
+        offsets += ((offset._1+1, offset._2))
+        offsets += ((offset._1-1, offset._2))
+        offsets += ((offset._1, offset._2+1))
+        offsets += ((offset._1, offset._2-1))
+      }
+
+      for (enemy <- game.board.enemyAnts.keys){
+        for (offset <- offsets){
+          val coord = game.normalise(enemy.row, enemy.column, offset._1, offset._2)
+          attackMap(coord._1)(coord._2) -= 1
+        }
+      }
+
+      for (myAnt <- game.board.myAnts.keys){
+        for (offset <- offsets){
+          val coord = game.normalise(myAnt.row, myAnt.column, offset._1, offset._2)
+          attackMap(coord._1)(coord._2) += 1
+        }
+      }
+    }
+
     updateEnemyHills()
+    updateAttackMap()
+
+    System.err.println("Attack state at start of turn " + game.turn)
+
+    // Print attack map
+//    for (row <- 0 to game.parameters.rows-1){
+//      var rowString = ""
+//      for (col <- 0 to game.parameters.columns-1){
+//        val tile = Tile(row = row, column = col)
+//        if (game.board.enemyAnts.keys.toList.contains(tile)){
+//          rowString += "E"
+//        }
+//        else if (game.board.myAnts.keys.toList.contains(tile)){
+//          rowString += "A"
+//        }
+//        else if (game.board.water.keys.toList.contains(tile)){
+//          rowString += "W"
+//        }
+//        else
+//        {
+//          val score = attackMap(row)(col)
+//          if (score == 0)
+//          {
+//            rowString += "0"
+//          }
+//          else if (score < 0)
+//          {
+//            rowString += "-"
+//          }
+//          else if (score > 0)
+//          {
+//            rowString += "+"
+//          }
+//
+//        }
+//      }
+//      System.err.println(rowString)
+//    }
+
+
+
 
     val visTime = System.currentTimeMillis()
-    game.setupVisibility
+    game.setupVisibility()
     System.err.println("Vis time: "+ (System.currentTimeMillis() - visTime).toString +"ms")
 
     val directions = List(North, East, South, West)
@@ -152,6 +224,7 @@ class MyBot extends Bot {
 
     System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
+
     val result = ants.flatMap{ant =>
       val neighbours = game.neighboursOf(ant.tile)
 
@@ -170,7 +243,19 @@ class MyBot extends Bot {
 
       if (direction.nonEmpty){
         occupiedTiles -= ant.tile
-        occupiedTiles += game.tile(direction.head).of(ant.tile)
+        val newTile = game.tile(direction.head).of(ant.tile)
+        occupiedTiles += newTile
+
+//        val offsets = game.getOffsets(game.parameters.attackRadius)
+//
+//        for (offset <- offsets){
+//          var coord = game.normalise(ant.tile.row, ant.tile.column, offset._1, offset._2)
+//          attackMap(coord._1)(coord._2) -= 1
+//
+//          coord = game.normalise(newTile.row, newTile.column, offset._1, offset._2)
+//          attackMap(coord._1)(coord._2) += 1
+//        }
+        
       }
 
       // convert this (possible) direction into an order for this ant
