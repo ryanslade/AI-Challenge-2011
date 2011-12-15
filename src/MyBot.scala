@@ -116,7 +116,7 @@ class MyBot extends Bot {
     (oldFoodMap, oldExploreMap)
   }
 
-  def defend(game: Game, occupiedTiles: HashSet[Tile], antsPerDefender: Int = 5): Map[Tile,  Option[CardinalPoint]] = {
+  def getDefenseMoves(game: Game, occupiedTiles: HashSet[Tile], antsPerDefender: Int = 5): Map[Tile,  Option[CardinalPoint]] = {
     val defenseOffsets = List((1,1), (1,-1), (-1,1), (-1,-1))
     val defensePositions = defenseOffsets.flatMap(o =>
       game.board.myHills.keys.map(h =>
@@ -149,13 +149,11 @@ class MyBot extends Bot {
 
     def updateEnemyHills() {
       // Add all hills to known hills
-      game.board.enemyHills.keys.foreach{ h =>
-        knownEnemyHills += h
-      }
+      game.board.enemyHills.keys.foreach(knownEnemyHills += _)
 
       // Remove enemy hills we have razed
       knownEnemyHills.foreach{ h =>
-        if (game.board.myAnts.keys.toList.contains(h)){
+        if (game.board.myAnts.keySet.contains(h)){
           knownEnemyHills -= h
         }
       }
@@ -196,7 +194,7 @@ class MyBot extends Bot {
     allAnts.foreach(ant => occupiedTiles += ant)
 
     updateEnemyHills()
-    val defenseMoves = defend(game, occupiedTiles)
+    val defenseMoves = getDefenseMoves(game, occupiedTiles)
     val antsStillToMove = allAnts.filterNot(defenseMoves.keySet.contains(_))
     val defenseOrders = defenseMoves.filterNot(_._2.isEmpty).map(d => Order(d._1, d._2.head))
     updateAttackMap()
@@ -205,7 +203,7 @@ class MyBot extends Bot {
     game.setupVisibility()
     System.err.println("Vis time: "+ (System.currentTimeMillis() - visTime).toString +"ms")
 
-    val diffusionMaps = diffuse(game, 300, 30)
+    val diffusionMaps = diffuse(game, 300, 35)
 
     System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
@@ -233,7 +231,7 @@ class MyBot extends Bot {
       }
 
       // convert this (possible) direction into an order for this antTile
-      direction.map{d => Order(antTile, d)}
+      direction.map(d => Order(antTile, d))
     }.toSet ++ defenseOrders
 
     System.err.println("Ant movements: "+ (System.currentTimeMillis() - antTime).toString +"ms")
