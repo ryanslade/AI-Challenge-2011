@@ -1,5 +1,5 @@
 import collection.mutable.{HashSet}
-import scala.math.max
+import scala.math.{max, min}
 
 object MyBot extends App {
   new AntsGame().run(new MyBot)
@@ -15,7 +15,6 @@ class MyBot extends Bot {
 
   def diffuse(game: Game, maxIterations: Int = 200, bailoutMilliseconds: Long = 5) = {
     val maxValue = Float.MaxValue/4 // Need to divide by 4 since we are averaging lower down
-    val minValue = -maxValue
 
     if (oldFoodMap.isEmpty){
       oldFoodMap = Array.ofDim[Double](game.parameters.rows, game.parameters.columns)
@@ -117,6 +116,30 @@ class MyBot extends Bot {
     (oldFoodMap, oldExploreMap)
   }
 
+  def defend(game: Game, occupiedTiles: HashSet[Tile], antsPerDefender: Int = 5): Map[Tile,  Option[CardinalPoint]] = {
+    val defenseOffsets = List((1,1), (1,-1), (-1,1), (-1,-1))
+    val defensePositions = defenseOffsets.flatMap(o =>
+      game.board.myHills.keys.map(h =>
+        game.normalise(h.row, h.column, o._1, o._2))).map(t => Tile(row = t._1, column = t._2)).filter(t => !game.board.water.contains(t))
+
+    val numberOfDefenders = min(defensePositions.size, game.board.myAnts.size / antsPerDefender)
+
+    defensePositions.take(numberOfDefenders).flatMap{pos =>
+      if (game.board.myAnts.contains(pos)){
+        // Already have an ant there, don't move
+        Map(pos -> Option.empty[CardinalPoint])
+      }
+      else{
+        val closestAnt = game.closestTo(pos, defenseOffsets.size+1).filter(!defensePositions.contains(_)).head.tile
+        val direction = game.directionFrom(closestAnt).to(pos).filter{d =>
+          val tile = game.tile(d).of(closestAnt)
+          !game.board.water.contains(tile) && !occupiedTiles.contains(tile)
+        }.headOption
+        Map(closestAnt -> direction)
+      }
+    }.toMap
+  }
+
   def ordersFrom(game: Game): Set[Order] = {
 
     def neighboursSortedByMap(neighbours: List[Tile],  diffusionMap: Array[Array[Double]], occupiedTiles: HashSet[Tile]) = {
@@ -167,66 +190,28 @@ class MyBot extends Bot {
       }
     }
 
+    val directions = List(North, East, South, West)
+    val allAnts = game.board.myAnts.keys
+    val occupiedTiles = new HashSet[Tile]
+    allAnts.foreach(ant => occupiedTiles += ant)
+
     updateEnemyHills()
+    val defenseMoves = defend(game, occupiedTiles)
+    val antsStillToMove = allAnts.filterNot(defenseMoves.keySet.contains(_))
+    val defenseOrders = defenseMoves.filterNot(_._2.isEmpty).map(d => Order(d._1, d._2.head))
     updateAttackMap()
-
-    System.err.println("Attack state at start of turn " + game.turn)
-
-    // Print attack map
-//    for (row <- 0 to game.parameters.rows-1){
-//      var rowString = ""
-//      for (col <- 0 to game.parameters.columns-1){
-//        val tile = Tile(row = row, column = col)
-//        if (game.board.enemyAnts.keys.toList.contains(tile)){
-//          rowString += "E"
-//        }
-//        else if (game.board.myAnts.keys.toList.contains(tile)){
-//          rowString += "A"
-//        }
-//        else if (game.board.water.keys.toList.contains(tile)){
-//          rowString += "W"
-//        }
-//        else
-//        {
-//          val score = attackMap(row)(col)
-//          if (score == 0)
-//          {
-//            rowString += "0"
-//          }
-//          else if (score < 0)
-//          {
-//            rowString += "-"
-//          }
-//          else if (score > 0)
-//          {
-//            rowString += "+"
-//          }
-//
-//        }
-//      }
-//      System.err.println(rowString)
-//    }
-
-
-
 
     val visTime = System.currentTimeMillis()
     game.setupVisibility()
     System.err.println("Vis time: "+ (System.currentTimeMillis() - visTime).toString +"ms")
-
-    val directions = List(North, East, South, West)
-    val ants = game.board.myAnts.values
-
-    val occupiedTiles = new HashSet[Tile]
-    ants.foreach(ant => occupiedTiles += ant.tile)
 
     val diffusionMaps = diffuse(game, 300, 30)
 
     System.err.println("Time left before moving ants: " + (game.parameters.turnTime - (System.currentTimeMillis() - game.turnStartTime)).toString)
     val antTime = System.currentTimeMillis()
 
-    val result = ants.flatMap{ant =>
-      val neighbours = game.neighboursOf(ant.tile)
+    val result = antsStillToMove.flatMap{antTile =>
+      val neighbours = game.neighboursOf(antTile)
 
       var nextTile = Option.empty[Tile]
       // Pick the direction with the highest food smell (if any)
@@ -238,29 +223,18 @@ class MyBot extends Bot {
       }
 
       val direction = directions.find{aim =>
-        nextTile.nonEmpty && game.tile(aim).of(ant.tile) == nextTile.head
+        nextTile.nonEmpty && game.tile(aim).of(antTile) == nextTile.head
       }
 
       if (direction.nonEmpty){
-        occupiedTiles -= ant.tile
-        val newTile = game.tile(direction.head).of(ant.tile)
+        occupiedTiles -= antTile
+        val newTile = game.tile(direction.head).of(antTile)
         occupiedTiles += newTile
-
-//        val offsets = game.getOffsets(game.parameters.attackRadius)
-//
-//        for (offset <- offsets){
-//          var coord = game.normalise(ant.tile.row, ant.tile.column, offset._1, offset._2)
-//          attackMap(coord._1)(coord._2) -= 1
-//
-//          coord = game.normalise(newTile.row, newTile.column, offset._1, offset._2)
-//          attackMap(coord._1)(coord._2) += 1
-//        }
-        
       }
 
-      // convert this (possible) direction into an order for this ant
-      direction.map{d => Order(ant.tile, d)}
-    }.toSet
+      // convert this (possible) direction into an order for this antTile
+      direction.map{d => Order(antTile, d)}
+    }.toSet ++ defenseOrders
 
     System.err.println("Ant movements: "+ (System.currentTimeMillis() - antTime).toString +"ms")
 
