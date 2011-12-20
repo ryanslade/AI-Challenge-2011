@@ -115,12 +115,12 @@ sealed trait Game {
     }
   }
 
-  def neighboursOf(tile: Tile): List[Tile] = {
-    List(this.tile(North).of(tile), this.tile(East).of(tile), this.tile(South).of(tile), this.tile(West).of(tile))
+  def neighboursOf(targetTile: Tile): List[Tile] = {
+    List(North, East,  South,  West).map(tile(_).of(targetTile))
   }
 
-  def closestTo(target: Tile, limit: Int = 1) = {
-    board.myAnts.values.toList.sortBy(a => distanceFrom(a.tile).to(target)).take(limit)
+  def closestTo(targetTile: Tile, limit: Int = 1) = {
+    board.myAnts.values.toList.sortBy(a => distanceFrom(a.tile).to(targetTile)).take(limit)
   }
 
 }
